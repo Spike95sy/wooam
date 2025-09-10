@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>우암 룰렛 v3.7 — 6슬라이스 (오프라인)</title>
+  <meta name="theme-color" content="#fb923c">
+  <style>
+    :root{ --bg1:#fff7ed;--bg2:#ffedd5;--card:#ffffff;--text:#111827;--accent:#f43f5e;--amber:#f59e0b;--muted:#6b7280;--success-bg:#ecfdf5;--success-fg:#065f46;--border:#e5e7eb; }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;margin:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";color:var(--text);background:linear-gradient(to bottom,var(--bg1),var(--bg2))}
+    .container{max-width:720px;margin:0 auto;padding:24px 16px 140px;text-align:center}
+    h1{font-size:24px;font-weight:800;margin:0 0 8px}
+    .settings-wrap{margin-bottom:16px}
+    .settings-btn{display:inline-block;padding:10px 14px;font-size:14px;border-radius:14px;background:#fff;border:1px solid var(--border);box-shadow:0 1px 2px rgba(0,0,0,.06);cursor:pointer}
+    .card{background:var(--card);border-radius:24px;box-shadow:0 10px 20px rgba(0,0,0,.06);padding:16px;margin-bottom:16px;text-align:center}
+    .muted{color:var(--muted);font-size:12px}
+    .balance{font-variant-numeric:tabular-nums;font-weight:900;font-size:36px;margin-top:4px}
+    .row-col{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .btn{width:100%;max-width:280px;padding:14px 18px;border-radius:16px;font-size:16px;font-weight:800;border:none;box-shadow:0 6px 14px rgba(0,0,0,.06);cursor:pointer;display:inline-block}
+    .btn:active{transform:scale(.98)}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-amber{background:var(--amber);color:#fff;font-weight:700}
+    .btn-ghost{background:#f3f4f6;color:#111827;font-weight:700}
+    .wheel-wrap{position:relative;width:min(70vw,320px);height:min(70vw,320px);min-width:224px;min-height:224px;margin:0 auto 48px}
+    .pointer{position:absolute;top:0;left:50%;transform:translateX(-50%);width:10px;height:24px;background:var(--accent);border-bottom-left-radius:8px;border-bottom-right-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.15);z-index:2}
+    .wheel{position:absolute;inset:0;border:8px solid #fff;border-radius:999px;box-shadow:0 10px 18px rgba(0,0,0,.08);overflow:hidden;background:#fff}
+    .slice{position:absolute;left:50%;top:50%;transform-origin: top left;width:50%;height:50%;display:flex;align-items:center;justify-content:center;border-bottom-right-radius:100% 100%;font-size:12px;font-weight:800}
+    .spin{transition:transform 2.2s cubic-bezier(0.19,1,0.22,1)}
+    .msg{margin-top:16px;background:var(--success-bg);color:var(--success-fg);padding:10px 12px;border-radius:14px;font-size:14px;display:none}
+    .grid-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    @media(min-width:480px){.grid-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .chip{background:#fff;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.06);padding:8px 10px;font-size:12px}
+    .chip.active{background:#111827;color:#fff}
+    .settings{text-align:left}
+    .textarea{width:100%;height:120px;border:1px solid var(--border);border-radius:14px;padding:10px;font-family:ui-monospace,monospace;font-size:13px}
+    .footer{margin-top:24px;font-size:11px;opacity:.6}
+    .row-btns{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+    .row-btns .settings-btn{flex:1; min-width:120px; text-align:center;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>우암 룰렛</h1>
+    <div class="settings-wrap">
+      <button id="btnSettings" class="settings-btn">⚙️ 설정</button>
+    </div>
+
+    <div class="card">
+      <div class="muted">현재 잔액</div>
+      <div id="balance" class="balance">0원</div>
+      <div class="row-col" style="margin-top:14px">
+        <button id="btnCharge" class="btn btn-amber">충전 1,000원</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="wheel-wrap">
+        <div class="pointer"></div>
+        <div id="wheel" class="wheel spin"></div>
+      </div>
+      <div class="row-col">
+        <button id="btnSpin" class="btn btn-primary">룰렛 시작</button>
+        <button id="btnTransfer" class="btn btn-ghost">계좌이체</button>
+      </div>
+      <div id="message" class="msg"></div>
+    </div>
+
+    <div id="settingsPanel" class="card settings" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="font-weight:700">시나리오 설정 (6칸)</div>
+        <button id="btnResetSteps" class="settings-btn">기본값으로</button>
+      </div>
+      <div class="chip" style="background:#fff7ed;margin-top:8px">쉼표로 6개 금액 변화를 나열하세요. (예: -200, +300, -150, +500, -700, +200)</div>
+      <textarea id="taSteps" class="textarea" placeholder="-200, +300, -150, +500, -700, +200"></textarea>
+      <div id="warn6" class="muted" style="display:none;margin-top:6px">입력 개수가 6개가 아니어서 자동 보정되었습니다.</div>
+      <div class="row-btns">
+        <button id="btnApply" class="settings-btn">적용</button>
+        <button id="btnClose" class="settings-btn">닫기</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px">
+        <div class="chip">
+          <div class="muted" style="margin-bottom:4px">총 변화(합계)</div>
+          <div id="sumChange" style="font-weight:800">+0원</div>
+        </div>
+        <div class="chip">
+          <div class="muted" style="margin-bottom:4px">현재 스텝</div>
+          <div id="stepInfo" style="font-weight:800">1 / 6</div>
+        </div>
+      </div>
+      <div id="stepsGrid" class="grid-steps"></div>
+    </div>
+
+    <div class="footer">© 우암 룰렛 — 촬영용 데모 앱</div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => (n >= 0 ? '+' + n.toLocaleString() : n.toLocaleString());
+    const SIX = 6;
+    const defaultStepChanges = [-200, +300, -150, +500, -700, +200];
+
+    // load
+    function normalize6(arr){
+      const out = [];
+      for(let i=0;i<SIX;i++) out.push(Number(arr[i % arr.length] || 0));
+      return out;
+    }
+    function loadSteps(){
+      try{
+        const raw = JSON.parse(localStorage.getItem('uomRoulette_steps'));
+        if(Array.isArray(raw) && raw.length>0) return normalize6(raw);
+      }catch(e){}
+      return defaultStepChanges.slice();
+    }
+    let balance = Number(localStorage.getItem('uomRoulette_balance') || 0);
+    let stepChanges = loadSteps();
+    let currentStep = Number(localStorage.getItem('uomRoulette_stepIndex') || 0) % SIX;
+    let spinning = false;
+
+    function save(){
+      localStorage.setItem('uomRoulette_balance', String(balance));
+      localStorage.setItem('uomRoulette_steps', JSON.stringify(stepChanges));
+      localStorage.setItem('uomRoulette_stepIndex', String(currentStep));
+    }
+
+    // elements
+    const elBalance = $('balance');
+    const elWheel = $('wheel');
+    const elMsg = $('message');
+    const elBtnSpin = $('btnSpin');
+    const elBtnCharge = $('btnCharge');
+    const elBtnTransfer = $('btnTransfer');
+    const elBtnSettings = $('btnSettings');
+    const elSettingsPanel = $('settingsPanel');
+    const elTaSteps = $('taSteps');
+    const elBtnResetSteps = $('btnResetSteps');
+    const elSumChange = $('sumChange');
+    const elStepInfo = $('stepInfo');
+    const elStepsGrid = $('stepsGrid');
+    const elWarn6 = $('warn6');
+    const elBtnApply = $('btnApply');
+    const elBtnClose = $('btnClose');
+
+    function showMsg(text){ elMsg.textContent = text; elMsg.style.display = text ? 'block' : 'none'; }
+    function renderBalance(){ elBalance.textContent = balance.toLocaleString() + '원'; }
+
+    function renderStepsUI(){
+      const sum = stepChanges.reduce((a,b)=>a+b,0);
+      elSumChange.textContent = fmt(sum) + '원';
+      elStepInfo.textContent = ((currentStep % SIX)+1) + ' / ' + SIX;
+      elStepsGrid.innerHTML = '';
+      for(let i=0;i<SIX;i++){
+        const d = document.createElement('div');
+        d.className = 'chip' + (i === (currentStep % SIX) ? ' active' : '');
+        d.textContent = (i+1) + '. ' + fmt(stepChanges[i]) + '원';
+        elStepsGrid.appendChild(d);
+      }
+    }
+
+    function renderWheel(){
+      elWheel.innerHTML = '';
+      const angle = 360 / SIX;
+      for(let i=0;i<SIX;i++){
+        const slice = document.createElement('div');
+        slice.className = 'slice';
+        slice.style.transform = 'rotate('+(i*angle)+'deg)';
+        slice.style.background = (i%2===0 ? '#fde68a' : '#fca5a5');
+        slice.textContent = fmt(stepChanges[i]) + '원';
+        elWheel.appendChild(slice);
+      }
+    }
+
+    function targetAngleForStep(index){
+      const angle = 360 / SIX;
+      const center = index * angle + angle/2;
+      return 360*5 + (360 - center);
+    }
+
+    // actions
+    elBtnCharge.onclick = () => {
+      balance += 1000;
+      showMsg('충전: +1,000원 → 잔액 ' + balance.toLocaleString() + '원');
+      currentStep = 0;
+      renderBalance(); renderStepsUI(); save();
+    };
+
+    elBtnSpin.onclick = async () => {
+      if (spinning) return;
+      const idx = currentStep % SIX;
+      const change = stepChanges[idx];
+      spinning = true;
+      const prevRot = Number(elWheel.dataset.rot || 0);
+      const nextRot = prevRot + targetAngleForStep(idx);
+      elWheel.dataset.rot = String(nextRot);
+      elWheel.style.transform = 'rotate('+nextRot+'deg)';
+      await new Promise(r=>setTimeout(r, 2300));
+
+      if (idx === SIX-1){
+        const temp = balance + change;
+        showMsg('변동: ' + fmt(change) + ' → 잔액 ' + temp.toLocaleString() + '원');
+        await new Promise(r=>setTimeout(r, 400));
+        balance = 0;
+        showMsg('자동 엔딩: 0원');
+      } else {
+        balance = balance + change;
+        showMsg('변동: ' + fmt(change) + ' → 잔액 ' + balance.toLocaleString() + '원');
+      }
+      currentStep = (currentStep + 1) % SIX;
+      renderBalance(); renderStepsUI(); save();
+      await new Promise(r=>setTimeout(r, 200));
+      spinning = false;
+    };
+
+    elBtnTransfer.onclick = () => {
+      balance = 0;
+      renderBalance();
+      showMsg('출금이 되지 않습니다.');
+      save();
+    };
+
+    // Settings open/close
+    elBtnSettings.onclick = () => {
+      const open = elSettingsPanel.style.display !== 'none';
+      if (open){
+        elSettingsPanel.style.display = 'none';
+      } else {
+        elTaSteps.value = stepChanges.map(n => n>=0? ('+'+n) : String(n)).join(', ');
+        elWarn6.style.display = 'none';
+        elSettingsPanel.style.display = 'block';
+      }
+    };
+    elBtnClose.onclick = () => { elSettingsPanel.style.display = 'none'; };
+
+    function applyStepsFromTextarea(){
+      try {
+        const raw = elTaSteps.value.replace(/\\s+/g, '');
+        if (!raw) { stepChanges = defaultStepChanges.slice(); elWarn6.style.display = 'none'; }
+        else {
+          let arr = raw.split(',').map(t=>Number(t));
+          if (arr.some(x=>Number.isNaN(x))) throw new Error('숫자만 입력');
+          if (arr.length !== SIX){
+            const out = [];
+            for (let i=0;i<SIX;i++) out.push(arr[i % arr.length]);
+            arr = out;
+            elWarn6.style.display = 'block';
+          } else {
+            elWarn6.style.display = 'none';
+          }
+          stepChanges = arr.map(Number);
+        }
+        currentStep = 0;
+        showMsg('시나리오가 적용되었습니다.');
+        renderWheel(); renderStepsUI(); save();
+      } catch(e) {
+        showMsg('형식을 확인해 주세요. 예: -200, +300, -150, +500, -700, +200');
+      }
+    }
+    elBtnApply.onclick = applyStepsFromTextarea;
+    elBtnResetSteps.onclick = () => {
+      stepChanges = defaultStepChanges.slice();
+      currentStep = 0;
+      elTaSteps.value = stepChanges.map(n => n>=0? ('+'+n) : String(n)).join(', ');
+      elWarn6.style.display = 'none';
+      showMsg('시나리오가 기본값으로 복원되었습니다.');
+      renderWheel(); renderStepsUI(); save();
+    };
+
+    // init
+    function initFromStorage(){
+      renderBalance(); renderWheel(); renderStepsUI();
+      // restore wheel rotation if exists
+      const rot = Number(elWheel.dataset.rot || 0);
+      elWheel.style.transform = 'rotate(' + rot + 'deg)';
+    }
+    initFromStorage();
+  </script>
+</body>
+</html>
